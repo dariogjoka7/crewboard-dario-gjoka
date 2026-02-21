@@ -1,4 +1,4 @@
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 import os
 
 from sqlalchemy import create_engine
@@ -17,6 +17,19 @@ def create_session(is_async: bool = False) -> AsyncSession | Session:
     except Exception as e:
         print('Could not create a connection with the database. POSTGRES_URL is missing.')
         raise e
+
+
+@contextmanager
+def get_session():
+    session = create_session()
+
+    try:
+        yield session
+    except Exception as e:
+        print(e)
+        session.rollback()
+    finally:
+        session.close()
 
 
 @asynccontextmanager

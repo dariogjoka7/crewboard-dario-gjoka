@@ -1,7 +1,8 @@
-from typing import List
+from typing import List, Optional
 
-from sqlalchemy import String, Integer, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import String, Integer, UniqueConstraint, select, Sequence
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Mapped, mapped_column, relationship, Session
 
 from backend.db.models.base import Base
 from backend.db.models.mixins import TimestampMixin
@@ -30,3 +31,15 @@ class Airport(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f'Airport(id={self.id}, code={self.code})'
+
+    @classmethod
+    async def get_by_code(cls, session: AsyncSession, code: str) -> Optional["Airport"]:
+        result = await session.execute(select(cls).where(cls.code == code))
+
+        return result.scalars().first()
+
+    @classmethod
+    async def get_where_in(cls, session: AsyncSession, codes: List[str]) -> Sequence["Airport"]:
+        result = await session.execute(select(cls).where(cls.code.in_(codes)))
+
+        return result.scalars().all()

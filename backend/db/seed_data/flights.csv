@@ -1,0 +1,9 @@
+ID,From,To,Aircraft,Departure,Arrival,Duty Hrs
+F1,FRA,LIS,A320,"Feb 1, 06:00","Feb 1, 08:30",2.5
+F2,FRA,ARN,B737,"Feb 1, 07:00","Feb 1, 09:30",2.5
+F3,LIS,FRA,A320,"Feb 1, 14:00","Feb 1, 16:30",2.5
+F4,ARN,VIE,E190,"Feb 1, 20:00","Feb 1, 22:30",2.5
+F5,FRA,WAW,B737,"Feb 2, 06:00","Feb 2, 08:00",2.0
+F6,VIE,FRA,A320,"Feb 2, 12:00","Feb 2, 13:30",1.5
+F7,WAW,ARN,E190,"Feb 3, 08:00","Feb 3, 10:00",2.0
+F8,FRA,LIS,B737,"Feb 3, 13:00","Feb 3, 15:30",2.5

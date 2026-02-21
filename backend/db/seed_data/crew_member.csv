@@ -1,0 +1,6 @@
+Emp,Name,Email,Qualifications,Base
+E001,Anna Müller,anna@crew.io,"A320,B737",FRA
+E002,Ben Costa,ben@crew.io,"A320",LIS
+E003,Clara Johansson,clara@crew.io,"B737,E190",ARN
+E004,David Petrov,david@crew.io,"A320,B737,E190",VIE
+E005,Eva Nowak,eva@crew.io,"A320,E190",WAW

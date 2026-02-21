@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import Integer, String, UniqueConstraint, ForeignKey, DateTime
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from backend.db.models.base import Base
@@ -35,3 +36,8 @@ class Flight(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f'Flight(id={self.id}, number={self.number})'
+
+    @classmethod
+    async def create(cls, session: AsyncSession, flight: dict) -> None:
+        session.add(cls(**flight))
+        await session.commit()
