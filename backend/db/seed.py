@@ -1,6 +1,6 @@
 import csv
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy import create_engine, inspect, text
@@ -19,11 +19,11 @@ CREW_MEMBERS_CSV_FILE_PATH = Path.home() / "Documents/personal/crewboard-dario-g
 FLIGHTS_CSV_FILE_PATH = Path.home() / "Documents/personal/crewboard-dario-gjoka/backend/db/seed_data/flights.csv"
 
 
-def parse_datetime(dt_str):
-    """
-    Convert 'Feb 1, 06:00' -> datetime object.
-    """
-    return datetime.strptime(dt_str, "%b %d, %H:%M")
+def parse_datetime(dt_str) -> datetime:
+    current_year = datetime.now(timezone.utc).year
+    dt = datetime.strptime(dt_str, "%b %d, %H:%M")
+    dt = dt.replace(year=current_year, tzinfo=timezone.utc)
+    return dt
 
 
 def seed():

@@ -1,15 +1,15 @@
+from collections import defaultdict
 from typing import List, Optional, Dict
 
-from sqlalchemy import String, ForeignKey, select, Sequence, Integer, UniqueConstraint, func, update
+from sqlalchemy import String, ForeignKey, select, Sequence, Integer, UniqueConstraint, func, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Mapped, mapped_column, relationship, selectinload, with_loader_criteria
+from sqlalchemy.orm import Mapped, mapped_column, relationship, selectinload
 
-from backend.db.models.base import Base
+from backend.db.models import Aircraft, Airport, Base
+from backend.db.models.flight import Flight
 from backend.db.models.crew_member_qualification import crew_member_aircraft_qualification_assoc_table
-from backend.db.models.airport import Airport
-from backend.db.models.aircraft import Aircraft
+from backend.db.models.crew_member_flight_assignment import crew_member_flight_assignment_assoc_table
 from backend.db.models.mixins import TimestampMixin
-from routers.models.crew_member.crew_member_update import CrewMemberUpdate
 
 
 class CrewMember(Base, TimestampMixin):
@@ -31,64 +31,27 @@ class CrewMember(Base, TimestampMixin):
         secondary=crew_member_aircraft_qualification_assoc_table,
         back_populates='crew_members'
     )
+    flight_assignments: Mapped[List["Flight"]] = relationship(  # type: ignore
+        secondary=crew_member_flight_assignment_assoc_table,
+        back_populates='crew_members',
+        order_by=asc(Flight.scheduled_departure)
+    )
 
     def __repr__(self) -> str:
         return f'CrewMember(id={self.id}, employee_number={self.employee_number})'
 
-    @classmethod
-    async def create(cls, session: AsyncSession, crew_member: dict) -> None:
-        session.add(cls(**crew_member))
-        await session.commit()
+    @property
+    def full_name(self) -> str:
+        return f'{self.first_name} {self.last_name}'
 
-    @staticmethod
-    async def update(session: AsyncSession, instance: "CrewMember") -> None:
-        await session.merge(instance)
-        await session.commit()
+    @property
+    def daily_duty_hours(self) -> Dict[str, float]:
+        hours_by_date = defaultdict(float)
+        for flight in self.flight_assignments:
+            if len(flight.duty_hours) == 1:
+                hours_by_date[flight.scheduled_departure.date().isoformat()] += flight.duty_hours[0]
+            else:
+                hours_by_date[flight.scheduled_departure.date().isoformat()] += flight.duty_hours[0]
+                hours_by_date[flight.scheduled_arrival.date().isoformat()] += flight.duty_hours[1]
 
-    @classmethod
-    async def get_all(
-        cls,
-        session: AsyncSession,
-        eager_load: list = [],
-        filters: dict | None = None,
-        skip: int = 0,
-        limit: int = 10
-    ) -> Sequence["CrewMember"]:
-        query = select(cls)
-        query = cls._build_filter_query(query, filters)
-        query = cls._build_eager_load_query(query, eager_load)
-        result = await session.execute(query.offset(skip).limit(limit))
-
-        return result.scalars().all()
-
-    @classmethod
-    async def get_by_id(cls, session: AsyncSession, employee_number: str, eager_load: list = []) -> Optional["CrewMember"]:
-        query = select(cls)
-        query = cls._build_eager_load_query(query, eager_load)
-        result = await session.execute(query.where(cls.employee_number == employee_number))
-
-        return result.scalars().first()
-
-    @classmethod
-    def _build_eager_load_query(cls, query, eager_load: list):
-        options = [
-            *[selectinload(relationship) for relationship in eager_load],
-        ]
-        if options:
-            query = query.options(*options)
-
-        return query
-
-    @classmethod
-    def _build_filter_query(cls, query, filters: Dict[str, str | List[str]]):
-        base_airport = filters['base_airport']
-        qualified_for = filters['qualified_for']
-
-        if base_airport:
-            query = query.join(cls.base_airport).where(Airport.code == base_airport)
-        if qualified_for:
-            query = query.join(cls.aircraft_qualifications).where(Aircraft.type.in_(qualified_for)) \
-                          .group_by(cls.id) \
-                          .having(func.count(Aircraft.type) == len(qualified_for))
-
-        return query
+        return hours_by_date

@@ -28,7 +28,6 @@ class CrewMemberResponse(BaseModel):
         alias='base_airport'
     )
     aircraft_qualifications: List[Any] = Field(
-        # examples=[['A320']],
         description='The aircraft qualifications of the employee',
         alias='aircraft_qualifications'
     )
