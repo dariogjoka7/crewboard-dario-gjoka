@@ -11,19 +11,9 @@ services:
       - POSTGRES_URL=postgresql+asyncpg://crewboard:crewboard@db:5432/crewboard
       - SECRET_KEY=test_secret_key
     volumes:
-      # For development with hot reload, mount backend to /app/backend
       - ./backend:/app/backend
     depends_on:
       - db
-  # frontend:
-  #   build: ./frontend
-  #   container_name: crewboard-frontend
-  #   ports:
-  #     - "5173:5173"
-  #   environment:
-  #     - NODE_ENV=production
-  #   volumes:
-  #     - ./frontend:/app
   db:
     image: postgres:16-alpine
     container_name: crewboard-db
