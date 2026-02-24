@@ -6,12 +6,12 @@ from fastapi import Response, status
 from backend.db.repos.crew_member_repo import CrewMemberRepo
 from backend.db.repos.flight_repo import FlightRepo
 from backend.db.models import CrewMember, Flight
-from exceptions.custom_exceptions import NotFoundException, BadRequestException
-from routers.models.assignment.assignment_auto_response import AssignmentAutoResponse, CrewDutySummary, AssignedFlight, UnassignableReason, \
+from backend.exceptions.custom_exceptions import NotFoundException, BadRequestException
+from backend.routers.models.assignment.assignment_auto_response import AssignmentAutoResponse, CrewDutySummary, AssignedFlight, UnassignableReason, \
     FailedFlight
-from routers.models.assignment.assignment_check_response import ConstraintViolated, Constraints
-from routers.models.assignment.assignment_create import AssignmentCreate
-from routers.models.assignment.assignment_full_schedule import AssignmentFullSchedule
+from backend.routers.models.assignment.assignment_check_response import ConstraintViolated, Constraints
+from backend.routers.models.assignment.assignment_create import AssignmentCreate
+from backend.routers.models.assignment.assignment_full_schedule import AssignmentFullSchedule
 
 
 class AssignmentService:
@@ -209,7 +209,7 @@ class AssignmentService:
 
     async def check_assignments(self) -> dict:
         assigned_crew_members = await self.crew_member_repo.get_all_flight_assignments()
-        violated_constraints = defaultdict(dict)
+        violated_constraints = {}
 
         for crew_member in assigned_crew_members:
             violated_constraints[crew_member.employee_number] = defaultdict(list)
@@ -235,44 +235,57 @@ class AssignmentService:
         return {'data': violated}
 
     async def auto_assign_flights(self):
-        all_crew = await self.crew_member_repo.get_all(eager_load=[
+        # fetch all crew and flights (raise limit to cover full dataset)
+        all_crew, _ = await self.crew_member_repo.get_all(eager_load=[
             CrewMember.aircraft_qualifications,
             CrewMember.flight_assignments
-        ])
+        ], limit=1000)
 
-        flights_to_assign = await self.flight_repo.get_all(eager_load=[Flight.aircraft])
-        flights_to_assign.sort(key=lambda f: f.scheduled_departure)
+        flights_all, _ = await self.flight_repo.get_all(eager_load=[Flight.aircraft, Flight.crew_members], limit=1000)
+        # sort flights chronologically
+        flights_all.sort(key=lambda f: f.scheduled_departure)
 
         assigned = []
         reasons_for_failure = defaultdict(list)
 
-        for flight in flights_to_assign:
-            candidates = []
+        # We'll attempt to assign each crew member to as many flights as they can,
+        # prioritizing the least-busy crew to improve fairness. Iterate until
+        # no further assignments are possible.
+        progress = True
+        while progress:
+            progress = False
 
-            for crew in all_crew:
-                reason = self._check_constraints(crew, flight)
-                if reason is None:
-                    candidates.append(crew)
-                else:
-                    reasons_for_failure[flight.number].append(UnassignableReason(
-                         employee_number=crew.employee_number,
-                         reason=reason[0]
-                    ))
+            # sort crew by current total duty hours (least busy first)
+            crew_order = sorted(all_crew, key=self.total_hours)
 
-            if not candidates:
-                continue
+            for crew in crew_order:
+                # try to assign this crew to any flight they are not already assigned to
+                for flight in flights_all:
+                    if flight in crew.flight_assignments:
+                        continue
 
-            best_candidate = min(candidates, key=self.total_hours)
+                    # check constraints for this candidate and flight
+                    reason = self._check_constraints(crew, flight)
+                    if reason is None:
+                        # eligible: assign and persist
+                        crew.flight_assignments.append(flight)
+                        await self.crew_member_repo.update(crew)
+                        assigned.append(AssignedFlight(
+                            flight_number=flight.number,
+                            assigned_to=crew.employee_number,
+                            name=f"{crew.first_name} {crew.last_name}"
+                        ))
+                        progress = True
+                        # continue attempting to add more flights to the same crew
+                        continue
+                    else:
+                        # record why this crew couldn't be assigned to this flight
+                        reasons_for_failure[flight.number].append(UnassignableReason(
+                            employee_number=crew.employee_number,
+                            reason=reason[0]
+                        ))
 
-            best_candidate.flight_assignments.append(flight)
-            await self.crew_member_repo.update(best_candidate)
-
-            assigned.append(AssignedFlight(
-                flight_number=flight.number,
-                assigned_to=best_candidate.employee_number,
-                name=f"{best_candidate.first_name} {best_candidate.last_name}"
-            ))
-
+        # Build duty summary for response
         duty_summary = [
             CrewDutySummary(
                 employee_number=crew.employee_number,

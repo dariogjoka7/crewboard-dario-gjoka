@@ -1,6 +1,6 @@
 import logging
 from typing import Annotated, List
-from fastapi import APIRouter, Depends, status, Path, Query
+from fastapi import APIRouter, Depends, status, Path, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.dependencies import get_session_dep
@@ -14,18 +14,17 @@ from backend.routers.models.crew_member.crew_member_body import CrewMemberBody
 from backend.routers.models.crew_member.crew_member_response import CrewMemberResponse
 from backend.routers.models.crew_member.crew_member_update import CrewMemberUpdate
 from backend.services.crew_member_service import CrewMemberService
+from backend.routers.models.pagination import PaginationParams
 
 router = APIRouter(prefix='/crew_members', tags=['Crew Members'])
 logger = logging.getLogger()
-
-SessionDep = Annotated[AsyncSession, Depends(get_session_dep)]
 
 
 @router.post(
     path='/',
     description='For creating new crew members',
     responses={
-        status.HTTP_400_BAD_REQUEST: {'model': BaseMessageResponse, 'description': 'Failed to create crew member'},
+        status.HTTP_400_BAD_REQUEST: {'model': BaseMessageResponse, 'description': 'Crew member exists'},
         status.HTTP_404_NOT_FOUND: {'model': BaseMessageResponse, 'description': 'Could not find airport'},
         status.HTTP_500_INTERNAL_SERVER_ERROR: {'model': BaseMessageResponse, 'description': 'Internal server error'}
     }
@@ -42,8 +41,8 @@ async def create_crew_member(
     path='/{employee_number}',
     description='For updating an existing crew member',
     responses={
-        status.HTTP_400_BAD_REQUEST: {'model': BaseMessageResponse, 'description': 'Failed to create crew member'},
-        status.HTTP_404_NOT_FOUND: {'model': BaseMessageResponse, 'description': 'Could not find airport'},
+        status.HTTP_400_BAD_REQUEST: {'model': BaseMessageResponse, 'description': 'Failed to update crew member'},
+        status.HTTP_404_NOT_FOUND: {'model': BaseMessageResponse, 'description': 'Could not find crew member or airport'},
         status.HTTP_500_INTERNAL_SERVER_ERROR: {'model': BaseMessageResponse, 'description': 'Internal server error'}
     }
 )
@@ -69,12 +68,13 @@ async def update_existing_crew_member(
 async def list_crew_members(
     _: Annotated[User, Depends(get_current_user)],
     crew_member_service: Annotated[CrewMemberService, Depends(get_crew_member_service)],
-    query_params: Annotated[CommonQueryParams, Depends()],
+    request: Request,
+    pagination: Annotated[PaginationParams, Depends()],
     base_airport: Annotated[str | None, Query(max_length=4, description='The base airport of the crew member')] = None,
-    qualified_for: Annotated[List[str], Query(description='The list of aircraft qualifications of the crew member')] = []
+    qualified_for: Annotated[List[str], Query(description='The list of aircraft qualifications of the crew member')] = [],
 ):
     logger.info('Listing all crew members')
-    return await crew_member_service.list_all_crew_members(query_params, base_airport, qualified_for)
+    return await crew_member_service.list_all_crew_members(request, pagination, base_airport, qualified_for)
 
 
 @router.get(
@@ -82,7 +82,7 @@ async def list_crew_members(
     description='For retrieving a crew member by their employee number',
     response_model=BaseListResponse[CrewMemberResponse],
     responses={
-        status.HTTP_400_BAD_REQUEST: {'model': BaseMessageResponse, 'description': 'Failed to list crew members'},
+        status.HTTP_404_NOT_FOUND: {'model': BaseMessageResponse, 'description': 'Could not find crew member'},
         status.HTTP_500_INTERNAL_SERVER_ERROR: {'model': BaseMessageResponse, 'description': 'Internal server error'}
     }
 )

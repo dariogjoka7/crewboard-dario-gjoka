@@ -1,4 +1,4 @@
-from typing import Optional, List, Sequence, Dict
+from typing import Optional, List, Sequence, Dict, Tuple
 
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload, contains_eager
@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.models import CrewMember, Airport, Aircraft
 from backend.db.models.flight import Flight
-from db.models.crew_member_flight_assignment import crew_member_flight_assignment_assoc_table
+from backend.db.models.crew_member_flight_assignment import crew_member_flight_assignment_assoc_table
 
 
 class CrewMemberRepo:
@@ -28,13 +28,15 @@ class CrewMemberRepo:
         filters: dict = {},
         skip: int = 0,
         limit: int = 10
-    ) -> Sequence["CrewMember"]:
+    ) -> Tuple[Sequence["CrewMember"], int]:
         query = select(self.model)
         query = self._build_filter_query(query, filters)
         query = self._build_eager_load_query(query, eager_load)
+
+        total = await self.session.scalar(select(func.count()).select_from(query.subquery()))
         result = await self.session.execute(query.offset(skip).limit(limit))
 
-        return result.scalars().all()
+        return result.scalars().all(), total
 
     async def get_by_id(self, employee_number: str, eager_load: list = []) -> Optional["CrewMember"]:
         query = select(self.model)

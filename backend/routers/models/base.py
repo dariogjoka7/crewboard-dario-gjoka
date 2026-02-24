@@ -1,6 +1,8 @@
 from typing import TypeVar, Generic, Sequence
 from pydantic import BaseModel
 
+from backend.routers.models.pagination import PaginationMeta
+
 T = TypeVar("T")
 
 
@@ -15,4 +17,4 @@ class BaseMessageResponse(BaseModel):
 
 class BaseListResponse(BaseModel, Generic[T]):
     data: Sequence[T] = []
-    meta: CommonQueryParams | None = None
+    meta: PaginationMeta | None = None

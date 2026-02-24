@@ -3,9 +3,9 @@ from fastapi.params import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth.user_repo import UserRepo
+from backend.auth.user_repo import UserRepo
 from backend.dependencies import get_session_dep
-from auth.user_service import UserService
+from backend.auth.user_service import UserService
 
 bearer_scheme = HTTPBearer(auto_error=False)
 

@@ -1,13 +1,14 @@
 from datetime import datetime
-from fastapi import Response, status
+from fastapi import Response, status, Request
 
 from backend.db.repos.aircraft_repo import AircraftRepo
 from backend.db.repos.airport_repo import AirportRepo
 from backend.db.repos.flight_repo import FlightRepo
 from backend.db.models import Flight
 from backend.routers.models.flight.flight_create import FlightCreate
-from exceptions.custom_exceptions import NotFoundException
-from routers.models.base import CommonQueryParams
+from backend.exceptions.custom_exceptions import NotFoundException, BadRequestException
+from backend.routers.models.base import CommonQueryParams
+from backend.routers.models.pagination import PaginationParams, build_pagination
 
 
 class FlightService:
@@ -22,6 +23,10 @@ class FlightService:
         self.flight_repo = flight_repo
 
     async def create_flight(self, body: FlightCreate):
+        existing_flight = await self.flight_repo.get_by_number(body.number)
+        if existing_flight:
+            raise BadRequestException(f'Flight with number {body.number} already exists')
+
         departure_airport = await self.airport_repo.get_by_code(body.departure_airport)
         if not departure_airport:
             raise NotFoundException(f'Departure airport with code {body.departure_airport} not found')
@@ -49,13 +54,14 @@ class FlightService:
 
     async def list_all_flights(
         self,
-        query_params: CommonQueryParams,
+        request: Request,
+        pagination: PaginationParams,
         scheduled_departure: datetime | None,
         scheduled_arrival: datetime | None,
         departure_airport: str | None,
         aircraft_type: str | None
     ):
-        flights = await self.flight_repo.get_all(eager_load=[
+        flights, total = await self.flight_repo.get_all(eager_load=[
             Flight.departure_airport,
             Flight.arrival_airport,
             Flight.aircraft
@@ -65,11 +71,13 @@ class FlightService:
             'departure_airport': departure_airport,
             'aircraft_type': aircraft_type
         },
-           skip=query_params.skip,
-           limit=query_params.limit
+            skip=pagination.skip,
+            limit=pagination.limit
         )
 
-        return {'data': flights, 'meta': query_params}
+        meta = build_pagination(request, pagination.page, pagination.limit, total)
+
+        return {'data': flights, 'meta': meta}
 
     async def get_single_flight(self, number: str):
         flight = await self.flight_repo.get_by_number(number, eager_load=[

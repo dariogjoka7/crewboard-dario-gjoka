@@ -61,7 +61,7 @@ async def delete_flight_assignment(
 async def assign_crew_member_to_flight(
     _: Annotated[User, Depends(get_current_user)],
     assignment_service: Annotated[AssignmentService, Depends(get_assignment_service)],
-    employee_number: Annotated[str, Path(example='E001', description='The employee number of the crew member')]
+    employee_number: Annotated[str, Path(examples=['E001'], description='The employee number of the crew member')]
 ):
     return await assignment_service.get_full_schedule(employee_number)
 

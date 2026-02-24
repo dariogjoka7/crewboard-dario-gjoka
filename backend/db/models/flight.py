@@ -1,7 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Sequence, Dict, List, Optional, Tuple
 
-from asyncpg.pgproto.pgproto import timedelta
 from sqlalchemy import Integer, String, UniqueConstraint, ForeignKey, DateTime, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import mapped_column, Mapped, relationship, selectinload

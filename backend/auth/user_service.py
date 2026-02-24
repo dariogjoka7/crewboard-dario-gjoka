@@ -1,12 +1,11 @@
 from fastapi import status, HTTPException
-
-from auth.models.login_request import LoginRequest
-from auth.models.token_response import TokenResponse
-from auth.security import verify_password, create_access_token
-from auth.user_repo import UserRepo
-from backend.auth.security import decode_access_token
 from fastapi.security import HTTPAuthorizationCredentials
 
+from backend.auth.models.login_request import LoginRequest
+from backend.auth.models.token_response import TokenResponse
+from backend.auth.security import verify_password, create_access_token
+from backend.auth.user_repo import UserRepo
+from backend.auth.security import decode_access_token
 from backend.exceptions.custom_exceptions import UnauthorizedException
 
 

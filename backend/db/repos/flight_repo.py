@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
 
-from typing import Sequence, Optional, Dict
-from sqlalchemy import select
+from typing import Sequence, Optional, Dict, Tuple
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from backend.db.models import Flight, Airport, Aircraft
 
 
@@ -22,13 +23,15 @@ class FlightRepo:
         filters: dict = {},
         skip: int = 0,
         limit: int = 10
-    ) -> Sequence["Flight"]:
+    ) -> Tuple[Sequence["Flight"], int]:
         query = select(self.model)
         query = self._build_filter_query(query, filters)
         query = self._build_eager_load_query(query, eager_load)
+
+        total = await self.session.scalar(select(func.count()).select_from(query.subquery()))
         result = await self.session.execute(query.offset(skip).limit(limit))
 
-        return result.scalars().all()
+        return result.scalars().all(), total
 
     async def get_by_number(self, number: str, eager_load: list = []) -> Optional["Flight"]:
         query = select(self.model)
