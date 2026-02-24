@@ -42,50 +42,6 @@ class AssignmentService:
 
         return Response(status_code=status.HTTP_200_OK)
 
-    # async def assign_crew_member_to_flight_second(self, body: AssignmentCreate):
-    #     crew_member = await self.crew_member_repo.get_by_id(body.employee_number, eager_load=[
-    #         CrewMember.aircraft_qualifications,
-    #         CrewMember.flight_assignments
-    #     ])
-    #     if not crew_member:
-    #         raise NotFoundException(f'Crew member with employee number: {body.employee_number} not found')
-    #
-    #     flight = await self.flight_repo.get_by_number(body.flight_number, eager_load=[
-    #         Flight.aircraft
-    #     ])
-    #     if not flight:
-    #         raise NotFoundException(f'Flight with number: {body.flight_number} not found')
-    #
-    #     if flight in crew_member.flight_assignments:
-    #         raise BadRequestException(f'Crew member is already assigned to this flight')
-    #
-    #     if flight.aircraft not in crew_member.aircraft_qualifications:
-    #         raise BadRequestException(f'Crew member does not posses an aircraft qualification for this flight')
-    #
-    #     if crew_member.flight_assignments:
-    #         rest_hours = abs((flight.scheduled_departure - crew_member.flight_assignments[0].scheduled_arrival).total_seconds() / 3600)
-    #         if rest_hours < 10:
-    #             raise BadRequestException(f"There haven't been 10 hours of rest between flights")
-    #
-    #     scheduled_departure = flight.scheduled_departure.date().isoformat()
-    #     scheduled_arrival = flight.scheduled_arrival.date().isoformat()
-    #     if len(flight.duty_hours) == 1 and crew_member.daily_duty_hours[scheduled_departure] + flight.duty_hours[0] > 8:
-    #         raise BadRequestException(f'Crew member exceeds daily duty hours (8h)')
-    #     elif (
-    #             len(flight.duty_hours) == 2
-    #             and (crew_member.daily_duty_hours[scheduled_departure] + flight.duty_hours[0] > 8
-    #                  or crew_member.daily_duty_hours[scheduled_arrival] + flight.duty_hours[1] > 8)
-    #     ):
-    #         raise BadRequestException(f'Crew member exceeds daily duty hours (8h)')
-    #
-    #     if any(self.overlaps(f, flight) for f in crew_member.flight_assignments):
-    #         raise BadRequestException(f'Departure date times or arrival date times overlap')
-    #
-    #     crew_member.flight_assignments.append(flight)
-    #     await self.crew_member_repo.update(crew_member)
-    #
-    #     return Response(status_code=status.HTTP_200_OK)
-
     async def remove_assignment(self, employee_number: str, flight_number: str):
         crew_member = await self.crew_member_repo.get_by_id(employee_number, eager_load=[
             CrewMember.flight_assignments
@@ -165,48 +121,6 @@ class AssignmentService:
 
         return {'data': flights}
 
-    # async def check_assignments_second(self):
-    #     assigned_crew_members = await self.crew_member_repo.get_all_flight_assignments()
-    #     violated_constraints = {}
-    #
-    #     for crew_member in assigned_crew_members:
-    #         crew_member_flights = crew_member.flight_assignments
-    #         violated_constraints[crew_member.employee_number] = defaultdict(list)
-    #
-    #         for flight in crew_member_flights:
-    #             for fl in crew_member_flights:
-    #                 if flight == fl:
-    #                     continue
-    #
-    #                 rest_hours = (fl.scheduled_departure - flight.scheduled_arrival).total_seconds() / 3600
-    #                 if 0 < rest_hours < 10:
-    #                     violated_constraints[crew_member.employee_number][flight.number].append(
-    #                         f"There haven't been 10 hours of rest between flights {flight.number} - {fl.number}")
-    #
-    #                 if self.overlaps(flight, fl):
-    #                     violated_constraints[crew_member.employee_number][flight.number].append(
-    #                         f'Departure date times or arrival date times overlap {flight.number} - {fl.number}')
-    #
-    #         for flight in crew_member_flights:
-    #             f_sd = flight.scheduled_departure.date().isoformat()
-    #             f_sa = flight.scheduled_arrival.date().isoformat()
-    #
-    #             if len(flight.duty_hours) == 1 and crew_member.daily_duty_hours[f_sd] > 8:
-    #                 violated_constraints[crew_member.employee_number][flight.number].append(f'Crew member exceeds daily duty hours (8h)')
-    #             elif (
-    #                     len(flight.duty_hours) == 2
-    #                     and (crew_member.daily_duty_hours[f_sd] > 8
-    #                          or crew_member.daily_duty_hours[f_sa] > 8)
-    #             ):
-    #                 violated_constraints[crew_member.employee_number][flight.number].append(f'Crew member exceeds daily duty hours (8h)')
-    #
-    #             flight_with_aircraft = await self.flight_repo.get_by_number(flight.number, eager_load=[Flight.aircraft])
-    #             if flight_with_aircraft.aircraft not in crew_member.aircraft_qualifications:
-    #                 violated_constraints[crew_member.employee_number][flight.number].append('Does not posses an aircraft '
-    #                                                                                         'qualification for this flight')
-    #
-    #     return {'data': violated_constraints}
-
     async def check_assignments(self) -> dict:
         assigned_crew_members = await self.crew_member_repo.get_all_flight_assignments()
         violated_constraints = {}
@@ -235,14 +149,12 @@ class AssignmentService:
         return {'data': violated}
 
     async def auto_assign_flights(self):
-        # fetch all crew and flights (raise limit to cover full dataset)
         all_crew, _ = await self.crew_member_repo.get_all(eager_load=[
             CrewMember.aircraft_qualifications,
             CrewMember.flight_assignments
-        ], limit=1000)
+        ])
 
-        flights_all, _ = await self.flight_repo.get_all(eager_load=[Flight.aircraft, Flight.crew_members], limit=1000)
-        # sort flights chronologically
+        flights_all, _ = await self.flight_repo.get_all(eager_load=[Flight.aircraft, Flight.crew_members])
         flights_all.sort(key=lambda f: f.scheduled_departure)
 
         assigned = []
@@ -255,19 +167,16 @@ class AssignmentService:
         while progress:
             progress = False
 
-            # sort crew by current total duty hours (least busy first)
             crew_order = sorted(all_crew, key=self.total_hours)
 
             for crew in crew_order:
-                # try to assign this crew to any flight they are not already assigned to
                 for flight in flights_all:
                     if flight in crew.flight_assignments:
                         continue
 
-                    # check constraints for this candidate and flight
                     reason = self._check_constraints(crew, flight)
                     if reason is None:
-                        # eligible: assign and persist
+
                         crew.flight_assignments.append(flight)
                         await self.crew_member_repo.update(crew)
                         assigned.append(AssignedFlight(
@@ -276,16 +185,13 @@ class AssignmentService:
                             name=f"{crew.first_name} {crew.last_name}"
                         ))
                         progress = True
-                        # continue attempting to add more flights to the same crew
                         continue
                     else:
-                        # record why this crew couldn't be assigned to this flight
                         reasons_for_failure[flight.number].append(UnassignableReason(
                             employee_number=crew.employee_number,
                             reason=reason[0]
                         ))
 
-        # Build duty summary for response
         duty_summary = [
             CrewDutySummary(
                 employee_number=crew.employee_number,

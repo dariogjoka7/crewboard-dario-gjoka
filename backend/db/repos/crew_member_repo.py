@@ -26,15 +26,18 @@ class CrewMemberRepo:
         self,
         eager_load: list = [],
         filters: dict = {},
-        skip: int = 0,
-        limit: int = 10
+        skip: int | None = None,
+        limit: int | None = None
     ) -> Tuple[Sequence["CrewMember"], int]:
         query = select(self.model)
         query = self._build_filter_query(query, filters)
         query = self._build_eager_load_query(query, eager_load)
 
         total = await self.session.scalar(select(func.count()).select_from(query.subquery()))
-        result = await self.session.execute(query.offset(skip).limit(limit))
+        if skip and limit:
+            query = query.offset(skip).limit(limit)
+
+        result = await self.session.execute(query)
 
         return result.scalars().all(), total
 
