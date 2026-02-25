@@ -31,12 +31,10 @@ def parse_datetime(dt_str) -> datetime:
 
 async def truncate_all_tables():
     async with engine.connect() as conn:
-        # run_sync wraps sync code (like inspect)
         def _truncate(connection):
             inspector = inspect(connection)
             table_names = [t for t in inspector.get_table_names() if t != "alembic_version"]
 
-            # defer constraints to avoid FK issues
             connection.execute(text("SET CONSTRAINTS ALL DEFERRED"))
 
             for table in table_names:
@@ -50,6 +48,7 @@ async def seed():
     existing_aircrafts = {}
     existing_airports = {}
 
+    # Seed users
     async with async_session() as session:
         session.add(
             User(
