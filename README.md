@@ -25,6 +25,23 @@ npm i
 npm run dev
 ```
 
+## Configure virtual environment
+- Run the below commands to create a virtual env locally
+```bash
+python -m venv
+venv/Scripts/Activate.ps1
+cd backend
+pip install -r requirements.txt
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+## Unit tests
+- Pytest
+- Run the below command in the root folder to run unit tests
+```bash
+pytest -q
+```
+
 ## Database
 - Postgres 16
 - Data persisted in `pgdata` volume
