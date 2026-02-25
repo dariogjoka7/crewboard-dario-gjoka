@@ -107,8 +107,8 @@ async def flights_data(db_session):
 async def assignments_data(db_session):
     ap = Airport(id=1, code='ZZZ')
     a = Aircraft(id=1, type='AX1')
-    db_session.merge(ap)
-    db_session.merge(a)
+    db_session.add(ap)
+    db_session.add(a)
 
     cm = CrewMember(employee_number='E200', first_name='Auto', last_name='Crew', email='auto@example.com', base_airport_id=ap.id)
     cm.base_airport = ap
