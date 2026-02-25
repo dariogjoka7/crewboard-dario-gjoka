@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import Annotated
-import logging
 
 from fastapi import APIRouter, Depends, status, Query, Path, Request
 
@@ -8,7 +7,7 @@ from backend.auth.dependencies import get_current_user
 from backend.db.models.user import User
 from backend.dependencies import get_flight_service
 from backend.routers.models.base import BaseMessageResponse
-from backend.routers.models.base import CommonQueryParams, BaseListResponse
+from backend.routers.models.base import BaseListResponse
 from backend.routers.models.flight.flight_create import FlightCreate
 from backend.routers.models.flight.flight_response import FlightResponse
 from backend.routers.models.flight.flight_response_with_assignments import FlightResponseWithAssignment
@@ -16,7 +15,7 @@ from backend.routers.models.pagination import PaginationParams
 from backend.services.flight_service import FlightService
 
 router = APIRouter(prefix='/flights', tags=['Flights'])
-logger = logging.getLogger()
+
 
 @router.post(
     path='/',
@@ -32,7 +31,6 @@ async def create_flight(
     flight_service: Annotated[FlightService, Depends(get_flight_service)],
     body: FlightCreate
 ):
-    logger.info(f"Creating a new flight with number: {body.number}")
     return await flight_service.create_flight(body)
 
 @router.get(
@@ -54,7 +52,6 @@ async def list_flights(
     departure_airport: Annotated[str | None, Query(description='The airport where the flight will departure from')] = None,
     aircraft_type: Annotated[str | None, Query(description='The aircraft type')] = None
 ):
-    logger.info('Listing all flights')
     return await flight_service.list_all_flights(request, pagination, scheduled_departure, scheduled_arrival, departure_airport,
                                                  aircraft_type)
 
@@ -72,6 +69,5 @@ async def get_flight_by_number(
     flight_service: Annotated[FlightService, Depends(get_flight_service)],
     number: Annotated[str, Path(description='The employee number')]
 ):
-    logger.info(f'Getting flight with number: {number}')
     return await flight_service.get_single_flight(number)
 

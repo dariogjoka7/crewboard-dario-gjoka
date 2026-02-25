@@ -1,4 +1,3 @@
-import logging
 from typing import Annotated
 
 from fastapi import APIRouter, status, Depends, Query, Path
@@ -11,7 +10,6 @@ from backend.routers.models.assignment.assignment_create import AssignmentCreate
 from backend.services.assignment_service import AssignmentService
 
 router = APIRouter(prefix='/assignments', tags=['Assignments'])
-logger = logging.getLogger()
 
 
 @router.post(
