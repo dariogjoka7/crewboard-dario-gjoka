@@ -1,4 +1,3 @@
-from fastapi import status, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
 from backend.auth.models.login_request import LoginRequest
@@ -6,6 +5,7 @@ from backend.auth.models.token_response import TokenResponse
 from backend.auth.security import verify_password, create_access_token
 from backend.auth.user_repo import UserRepo
 from backend.auth.security import decode_access_token
+from backend.db.models.user import User
 from backend.exceptions.custom_exceptions import UnauthorizedException
 
 
@@ -13,7 +13,7 @@ class UserService:
     def __init__(self, user_repo: UserRepo):
         self.user_repo = user_repo
 
-    async def get_current_user(self, credentials: HTTPAuthorizationCredentials | None):
+    async def get_current_user(self, credentials: HTTPAuthorizationCredentials | None) -> User:
         if not credentials:
             raise UnauthorizedException('Bearer token is missing from headers')
 

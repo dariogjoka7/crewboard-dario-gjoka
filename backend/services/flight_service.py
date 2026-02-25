@@ -1,3 +1,5 @@
+from typing import Dict, List
+
 from datetime import datetime
 from fastapi import Response, status, Request
 
@@ -7,7 +9,6 @@ from backend.db.repos.flight_repo import FlightRepo
 from backend.db.models import Flight
 from backend.routers.models.flight.flight_create import FlightCreate
 from backend.exceptions.custom_exceptions import NotFoundException, BadRequestException
-from backend.routers.models.base import CommonQueryParams
 from backend.routers.models.pagination import PaginationParams, build_pagination
 
 
@@ -22,7 +23,7 @@ class FlightService:
         self.aircraft_repo = aircraft_repo
         self.flight_repo = flight_repo
 
-    async def create_flight(self, body: FlightCreate):
+    async def create_flight(self, body: FlightCreate) -> Response:
         existing_flight = await self.flight_repo.get_by_number(body.number)
         if existing_flight:
             raise BadRequestException(f'Flight with number {body.number} already exists')
@@ -60,7 +61,7 @@ class FlightService:
         scheduled_arrival: datetime | None,
         departure_airport: str | None,
         aircraft_type: str | None
-    ):
+    ) -> dict:
         flights, total = await self.flight_repo.get_all(eager_load=[
             Flight.departure_airport,
             Flight.arrival_airport,
@@ -79,7 +80,7 @@ class FlightService:
 
         return {'data': flights, 'meta': meta}
 
-    async def get_single_flight(self, number: str):
+    async def get_single_flight(self, number: str) -> Dict[str, List[Flight]]:
         flight = await self.flight_repo.get_by_number(number, eager_load=[
             Flight.departure_airport,
             Flight.arrival_airport,

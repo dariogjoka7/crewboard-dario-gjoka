@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Tuple
+from typing import Tuple, List
 
 from fastapi import Response, status
 
@@ -19,7 +19,7 @@ class AssignmentService:
         self.crew_member_repo = crew_member_repo
         self.flight_repo = flight_repo
 
-    async def assign_crew_member_to_flight(self, body: AssignmentCreate):
+    async def assign_crew_member_to_flight(self, body: AssignmentCreate) -> Response:
         crew_member = await self.crew_member_repo.get_by_id(body.employee_number, eager_load=[
             CrewMember.aircraft_qualifications,
             CrewMember.flight_assignments
@@ -42,7 +42,7 @@ class AssignmentService:
 
         return Response(status_code=status.HTTP_200_OK)
 
-    async def remove_assignment(self, employee_number: str, flight_number: str):
+    async def remove_assignment(self, employee_number: str, flight_number: str) -> Response:
         crew_member = await self.crew_member_repo.get_by_id(employee_number, eager_load=[
             CrewMember.flight_assignments
         ])
@@ -63,7 +63,7 @@ class AssignmentService:
 
         return Response(status_code=status.HTTP_200_OK)
 
-    async def get_full_schedule(self, employee_number: str):
+    async def get_full_schedule(self, employee_number: str) -> dict[str, List[AssignmentFullSchedule]]:
         crew_member = await self.crew_member_repo.get_with_flight_assignments_asc(employee_number)
         if not crew_member:
             raise NotFoundException(f'Crew member with employee number: {employee_number} not found')
@@ -92,7 +92,7 @@ class AssignmentService:
 
         return {'data': flights}
 
-    async def check_assignments(self) -> dict:
+    async def check_assignments(self) -> dict[str, List[ConstraintViolated]]:
         assigned_crew_members = await self.crew_member_repo.get_all_flight_assignments()
         violated_constraints = {}
 
@@ -119,7 +119,7 @@ class AssignmentService:
 
         return {'data': violated}
 
-    async def auto_assign_flights(self):
+    async def auto_assign_flights(self) -> AssignmentAutoResponse:
         all_crew, _ = await self.crew_member_repo.get_all(eager_load=[
             CrewMember.aircraft_qualifications,
             CrewMember.flight_assignments

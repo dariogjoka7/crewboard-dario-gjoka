@@ -1,14 +1,12 @@
-from typing import List
+from typing import List, Dict
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Response, Request, status
 
-from backend.db.models.crew_member import CrewMember, Airport, Aircraft
+from backend.db.models.crew_member import CrewMember
 from backend.db.repos.aircraft_repo import AircraftRepo
 from backend.db.repos.airport_repo import AirportRepo
 from backend.db.repos.crew_member_repo import CrewMemberRepo
 from backend.exceptions.custom_exceptions import NotFoundException, BadRequestException
-from backend.routers.models.base import CommonQueryParams
 from backend.routers.models.crew_member.crew_member_body import CrewMemberBody
 from backend.routers.models.crew_member.crew_member_update import CrewMemberUpdate
 from backend.routers.models.pagination import PaginationParams, build_pagination
@@ -25,7 +23,7 @@ class CrewMemberService:
         self.aircraft_repo = aircraft_repo
         self.crew_member_repo = crew_member_repo
 
-    async def create_crew_member(self, body: CrewMemberBody):
+    async def create_crew_member(self, body: CrewMemberBody) -> Response:
         existing_crew_member = await self.crew_member_repo.get_by_id(body.employee_number)
         if existing_crew_member:
             raise BadRequestException(f'Crew member with employee number {body.employee_number} exists')
@@ -55,7 +53,7 @@ class CrewMemberService:
 
         return Response(status_code=status.HTTP_200_OK)
 
-    async def update_existing_crew_member(self, employee_number: str, body: CrewMemberUpdate):
+    async def update_existing_crew_member(self, employee_number: str, body: CrewMemberUpdate) -> Response:
         crew_member = await self.crew_member_repo.get_by_id(employee_number, eager_load=[
             CrewMember.base_airport,
             CrewMember.aircraft_qualifications
@@ -99,7 +97,7 @@ class CrewMemberService:
         pagination: PaginationParams,
         base_airport: str | None,
         qualified_for: List[str]
-    ):
+    ) -> dict:
         crew_members, total = await self.crew_member_repo.get_all(eager_load=[
             CrewMember.base_airport,
             CrewMember.aircraft_qualifications
@@ -115,7 +113,7 @@ class CrewMemberService:
 
         return {'data': crew_members, 'meta': meta}
 
-    async def get_one_crew_member(self, employee_number: str):
+    async def get_one_crew_member(self, employee_number: str) -> Dict[str, List[CrewMember]]:
         crew_member = await self.crew_member_repo.get_by_id(employee_number, eager_load=[
             CrewMember.base_airport,
             CrewMember.aircraft_qualifications
