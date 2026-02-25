@@ -62,35 +62,6 @@ class AssignmentService:
         await self.crew_member_repo.remove_flight(crew_member, flight)
 
         return Response(status_code=status.HTTP_200_OK)
-    
-    async def get_full_schedule_sec(self, employee_number: str) -> dict:
-        crew_member = await self.crew_member_repo.get_with_flight_assignments_asc(employee_number)
-        if not crew_member:
-            raise NotFoundException(f'Crew member with employee number: {employee_number} not found')
-
-        flights = []
-
-        for prev_flight, flight in zip(crew_member.flight_assignments, crew_member.flight_assignments[1:]):
-            flights.append(AssignmentFullSchedule(
-                number=prev_flight.number,
-                from_time=prev_flight.scheduled_departure,
-                to=prev_flight.scheduled_arrival,
-                rest_time=False
-            ))
-            flights.append(AssignmentFullSchedule(
-                from_time=prev_flight.scheduled_arrival,
-                to=flight.scheduled_departure,
-            ))
-
-        if crew_member.flight_assignments:
-            flights.append(AssignmentFullSchedule(
-                number=crew_member.flight_assignments[-1].number,
-                from_time=crew_member.flight_assignments[-1].scheduled_departure,
-                to=crew_member.flight_assignments[-1].scheduled_arrival,
-                rest_time=False
-            ))
-
-        return {'data': flights}
 
     async def get_full_schedule(self, employee_number: str):
         crew_member = await self.crew_member_repo.get_with_flight_assignments_asc(employee_number)
